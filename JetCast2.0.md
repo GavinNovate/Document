@@ -11,11 +11,8 @@
 UDP传输层 报文
 
 ```
-// Protocol-Version(2 Bytes):协议版本
 Content-Type(2 Bytes):数据类型
 Encrypt-Type(2 Bytes):加密方式
-// Content-Offset(2 Bytes)：数据偏移
-// 保留字节 - 新特性加到这里
 Data(~ Bytes):数据内容
 ```
 
@@ -24,14 +21,19 @@ Data(~ Bytes):数据内容
 TCP传输层 报文
 
 ```
-// Protocol-Version(2 Bytes):协议版本
 Content-Type(2 Bytes):数据类型
 Encrypt-Type(2 Bytes):加密方式
-// Content-Offset(2 Bytes)：数据偏移
 Content-Length(4 Bytes)：数据长度
-// 保留字节 - 新特性加到这里
 Data(~ Bytes)：数据内容
 ```
+
+说明：
+
+1. 新旧协议不能互通
+2. 一般情况，多个协议版本应该共存，而且支持高版本必然支持低版本
+3. 一般情况，旧业务使用的协议应该继续保持，如果旧业务使用新协议，要使用新增的方式（如何判断使用旧的方式还是新的方式？）
+
+
 
 说明：
 
