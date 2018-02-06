@@ -48,59 +48,66 @@ S->M:发送数据
 9. Slave开启TCP监听，Slave把监听端口放到Binding OK发送给Master。
 10. Master收到Binding OK包，关闭UDP监听，开启TCP链接。然后Master和Slave之间就可以互发数据了。
 
-说明：
-
-1. 关于伪装客户端：服务端接受到Binding包，读取设备唯一标识提示给用户，用户确认后才回应Binding OK包
-2. 关于伪装服务端：客户端收到Discover OK包时，提示给用户选择。
-
 ## 使用端口
 
+Slave UDP监听端口：固定端口	例：30000
 
+Slave TCP监听端口：不同服务对应不同端口 例：30001~30099
 
-## 加密传输
-
-
+Master UDP监听端口：固定范围内的随机未被占用的端口 例：30100~30999
 
 ## 协议内容
 
 协议分为三层，分别为表示层，应用层和业务层。
 
-表示层主要负责描述数据类型，数据加密方式和多个数据包的对应。
+表示层定义了数据的加密方式，数据类型和数据包之间的关系。
 
-应用层
+应用层定义了通用的UDP和TCP包的格式。
+
+业务层就是具体业务。
+
+三层互相独立，完成各自负责的部分，开发和维护人员只需关心具体业务即可。
 
 ### 表示层
 
-UDP传输层 报文
+UDP表示层 报文
 
 ```
 Context-Code(16 Bytes):会话UUID 确认一组UDP传输
-Content-Type(2 Bytes):数据类型	01:Byte 02:Json
 Encrypt-Type(2 Bytes):加密方式	00:None	01:RSA	02:AES
+Content-Type(2 Bytes):数据类型	01:Byte 02:Json
 Data(~ Bytes):数据内容
 ```
 
 
 
-TCP传输层 报文
+TCP表示层 报文
 
 ```
 Context-Code(16 Bytes):会话UUID 用于对应请求和响应关系
-Content-Type(2 Bytes):数据类型
 Encrypt-Type(2 Bytes):加密方式
+Content-Type(2 Bytes):数据类型
 Content-Length(4 Bytes)：数据长度
 Data(~ Bytes)：数据内容
 ```
 
 说明：
 
-1. 传输层无升级概念
-2. 数据类型为Byte时候，每条字段采取 index-length-content 三段式存储，或者是 length-content 两段式存储
-3. 加密方式表明Data内容的加密方式
-
+1. Context-Code:会话编号，在UDP中确认一组广播属于一连串对话，在TCP中确认一对请求与响应的关系
+2. Encrypt-Type:加密方式，00 00 为不加密，00 01为RSA方式加密，00 02为AES方式加密
+3. Content-Type:数据类型，00 01 为Byte类型，00 02为Json类型
+   - 当数据类型类Byte时，Data中的每个字段使用 length:content 的两段式进行存储，方便扩展和兼容
+4. Content-Length：数据长度，TCP中用来切割一帧数据包
+5. Data：数据内容，也就是应用层的包的内容
 
 
 ### 应用层
+
+#### BYTE格式
+
+TODO
+
+#### JSON格式
 
 UDP包装
 
@@ -142,17 +149,98 @@ Response
 }
 ```
 
-说明：
 
-兼容方案：重载
+
+### 业务层
+
+#### UDP部分
+
+Discover		Master -> Slave	不加密
+
+```json
+{
+  "Resource":"Discover",	// 资源 - 这个包里面装的东西是什么
+  "Data":{					// 数据 - 该资源包含的具体数据
+    "Service":"Music",		// 请求服务类型
+    // "SupportVsersion":[1,2,3]	// 支持的协议版本
+    "PublicKey":"12345678"	// Master公钥
+  },
+  "Port":10000				// 回应端口 - 表示我会监听哪个端口，等待对方的回应
+}
+```
+
+Discover OK	 Slave ->Master	RSA加密
+
+```json
+{
+  "Resource":"DiscoverOK",	// 资源 - 这个包里面装的东西是什么
+  "Data":{					// 数据 - 该资源包含的具体数据
+    "ServiceStatus":"Ready",		// 服务器状态
+    // "SupportVsersion":[1,2,3]	// 支持的协议版本
+    "AESKey":"12345678"		// AES秘钥
+  },
+  "Port":10000				// 回应端口 - 表示我会监听哪个端口，等待对方的回应
+}
+```
+
+Binding		Master->Slave	AES加密
+
+```json
+{
+  "Resource":"Binding",	// 资源 - 这个包里面装的东西是什么
+  "Data":{					// 数据 - 该资源包含的具体数据
+    "DeviceID":"1234"		// 设备唯一标识
+    "AESKey":"12345678"		// AES秘钥
+  },
+  "Port":10000				// 回应端口 - 表示我会监听哪个端口，等待对方的回应
+}
+```
+
+BindingOK	Slave -> Master	AES加密
+
+```json
+{
+  "Resource":"BindingOK",	// 资源 - 这个包里面装的东西是什么
+  "Data":{					// 数据 - 该资源包含的具体数据
+    "Port":"1234"			// TCP监听端口
+  },
+  "Port":10000				// 回应端口 - 表示我会监听哪个端口，等待对方的回应
+}
+```
+
+#### TCP部分
+
+TODO
+
+## 加密验证
+
+方案一：
+
+1. Master发送Discover包，带上自己的公钥
+2. Slave接收到Discover包，回应DiscoverOK包，带上AES秘钥然后用Master公钥加密。
+3. Master发送Binding包，带上自己的设备UUID，使用AES秘钥加密。
+4. Slave收到Binding包，使用AES秘钥解密成功后，回应BindingOK包，并使用AES秘钥加密。
+
+问题：
+
+如果有人拿到协议文档，或者反编译SDK，分析协议，会有以下情况产生：
+
+1. 可以伪造服务端，接到Discover包后按照正常流程进行，也会验证成功。
+2. 第一次验证成功后，通过木马或者等情况读取到用户手机的UUID，然后伪装用户手机和服务器通讯。
+
+想了很多种方案，但是不借助证书验证的方式，都无法完美解决。
+
+TODO……其他方案待考虑
+
+## 升级兼容
+
+方案一：重载（开闭原则）
 
 1. 当协议升级时候，不要修改以前Data内的字段，而应该添加新的字段
 2. 添加的字段应该是可空字段，新协议要对空值进行兼容
 3. 当老协议给新的协议发数据时，新协议应忽略空值/补充默认值，然后按新协议处理
 4. 当新协议给老协议发送数据时，老协议不会读到新协议的字段，然后自动按照老协议处理
 5. 对于不能处理的Resource类型，给予提示
-
-
 
 使用该方案的原因：
 
@@ -164,68 +252,4 @@ Response
 
 
 
-### 业务层
-
-UDP表现为无脑传输，但是要求双方知道各自是在说一件事，使用需要一个Context，语境
-
-TCP是请求-响应方式，Request 对应 Response ，需要用相同的ID来标识
-
-
-
-Discover		Master -> Slave
-
-```
-Resource:Discover	这个东西是什么？
-Context:100	谁在和我对话，我们之前说过什么？
-
-Service-Type:请求的服务类型
-// Support-Version:支持的协议版本
-
-Port:回应端口	我是谁？你应该回消息给谁？
-Public-Key:Master公钥		你应该用什么加密消息给我？
-
-本帧是否加密？ - 应该在外部提示
-```
-
-Discover OK	 Slave ->Master
-
-```
-Resource:DiscoverOK
-Context:100 我是回答谁的？我们刚才说的说什么？
-
-Service-Status:当前服务器的状态
-// Support-Version：支持的协议版本
-ASK：提问 - 可以是一个随机数
-
-// Port:回应端口
-Public-Key:Slave公钥
-
-本帧加密
-```
-
-Binding		Master->Slave
-
-```
-Resource:Binding
-Context:100
-
-Answer:回答 - 回答Slave的提问，原样返回即可
-UUID：Master的设备唯一标识号
-
-// Port:回应端口
-
-加密
-```
-
-BindingOK Slave -> Master
-
-```
-Resource:BindingOK
-Context:100
-
-Answer:随机数
-
-加密
-```
-
-
+方案二：在方案一的基础上，提供协议版本约定，但是可能对兼容性产生影响
