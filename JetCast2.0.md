@@ -1,92 +1,47 @@
-# JetCast 2.0 方案
+# JetCast2.0设计方案
 
-###### 简介
+JetCast主要局域网内多个设备间的通讯。
 
-JetCast主要是用于公司仪表端和中控端互相通讯的协议。2.0是在1.0的基础上重新设计的版本。
+JetCast2.0在1.0的基础上增加了安全性和扩展性。
 
 ## 角色定义
 
-- Master(Client)：中控端，Android设备，IOS设备
-- Slave(Server)：仪表端
-
-## 过程描述
-
-中控与仪表建立起局域网，可以是中控仪表一体设备的本地环回网络，也可以是中控仪表之间建立的无线连接。
-
-```sequence
-participant Master as M
-participant Slave as S
-Note over M,S:UDP
-Note over S:开启UDP监听
-Note over M:开启UDP监听
-M->S:发送Discover
-Note over S:收到Discover
-S->M:回应Discover OK
-Note over M:收到Discover OK
-M->S:发送Binding
-Note over S:收到Binding
-Note over M,S:TCP
-Note over S:开启TCP监听
-S->M:回应Binding OK
-Note over M:收到 Binding OK,关闭UDP监听
-Note over M:开启TCP链接
-M->S:发送数据
-S->M:发送数据
-```
-流程说明：
-
-1. Slave开启UDP监听，固定监听一个端口。
-2. Master开启UDP监听，监听固定范围内一个未被使用的端口。
-3. Master向局域网发送Discover广播，并且携带自己监听的端口号和随机生成的RSA加密公钥。
-4. Slave收到Discover广播，读取到Master监听的端口号和Master的公钥。
-5. Slave随机生成一个AES的加密秘钥，使用Master的公钥加密后向Master监听的端口发送Discover OK广播。
-6. Master收到Discover OK广播，使用自己的私钥解密，拿到AES秘钥。
-7. Master使用AES秘钥加密自己的设备唯一编号和AES秘钥本身给Slave发送Binding广播。
-8. Slave收到Binding广播，使用AES秘钥解密，验证AES秘钥是否正确（其实能解密就可以验证了），然后保存Master的设备唯一编号。
-9. Slave开启TCP监听，Slave把监听端口放到Binding OK发送给Master。
-10. Master收到Binding OK包，关闭UDP监听，开启TCP链接。然后Master和Slave之间就可以互发数据了。
+- Master(Client)：主设备
+- Slave(Server)：从设备
 
 ## 使用端口
 
-Slave UDP监听端口：固定端口	例：30000
+Slave UDP监听端口：固定端口	如：30000
 
-Slave TCP监听端口：不同服务对应不同端口 例：30001~30099
+Slave TCP监听端口：不同服务对应不同端口 如：30001~30099
 
-Master UDP监听端口：固定范围内的随机未被占用的端口 例：30100~30999
+Master UDP监听端口：固定范围内的随机未被占用的端口 如：30100~30999
+
+## 协议描述
+
+1. Master端在局域网内发送特定广播，寻找Slave端。
+2. Slave端收到广播，响应Master端，两端建立TCP连接，进行通讯。
 
 ## 协议内容
 
-协议分为三层，分别为表示层，应用层和业务层。
+协议规定了UDP和TCP数据包的格式
 
-表示层定义了数据的加密方式，数据类型和数据包之间的关系。
-
-应用层定义了通用的UDP和TCP包的格式。
-
-业务层就是具体业务。
-
-三层互相独立，完成各自负责的部分，开发和维护人员只需关心具体业务即可。
-
-### 表示层
-
-UDP表示层 报文
+UDP数据包格式
 
 ```
-Protocol-Version(2 Bytes):00 01
-// Context-Code(16 Bytes):会话UUID 确认一组UDP传输
+Protocol-Version(2 Bytes):协议版本
+Context-Code(8 Bytes):会话编码	同一组广播使用同一个会话编码
 Encrypt-Type(2 Bytes):加密方式	00:None	01:RSA	02:AES
 Content-Type(2 Bytes):数据类型	01:Byte 02:Json
 Data(~ Bytes):数据内容
 ```
 
-
-
-TCP表示层 报文
+TCP数据包格式
 
 ```
-Protocol-Version(2 Bytes):00 01
-// Context-Code(16 Bytes):会话UUID 用于对应请求和响应关系
+Protocol-Version(2 Bytes):协议版本
+Context-Code(8 Bytes):会话编码	一对请求响应使用同一个会话编码
 Encrypt-Type(2 Bytes):加密方式
-Compress-Type:压缩方式
 Content-Type(2 Bytes):数据类型
 Content-Length(4 Bytes)：数据长度
 Data(~ Bytes)：数据内容
@@ -94,38 +49,38 @@ Data(~ Bytes)：数据内容
 
 说明：
 
-1. Context-Code:会话编号，在UDP中确认一组广播属于一连串对话，在TCP中确认一对请求与响应的关系
-2. Encrypt-Type:加密方式，00 00 为不加密，00 01为RSA方式加密，00 02为AES方式加密
-3. Content-Type:数据类型，00 01 为Byte类型，00 02为Json类型
-   - 当数据类型类Byte时，Data中的每个字段使用 length:content 的两段式进行存储，方便扩展和兼容
-4. Content-Length：数据长度，TCP中用来切割一帧数据包
-5. Data：数据内容，也就是应用层的包的内容
+1. 协议版本：描述当前协议版本，预留协议升级的能力
+2. 会话编码：描述数据包的对应关系，应对并发场景
+3. 加密方式：描述数据内容的加密方式，分别为不加密，RSA加密和AES加密
+4. 数据类型：描述数据内容的数据类型，分别为Byte字节流和Json字符流
+5. 数据长度：TCP包中，确认数据内容的长度，用以切割数据包
+6. 数据内容：具体数据
+
+------
+
+协议规定了Byte和Json数据类型的通用格式
+
+Byte类型
+
+// Todo
 
 
-### 应用层
 
-#### BYTE格式
+Json类型
 
-TODO
-
-#### JSON格式
-
-UDP包装
+UDP包
 
 ```json
 {
-  "Resource":"Discover",	// 资源 - 这个包里面装的东西是什么
-  "Data":{					// 数据 - 该资源包含的具体数据
+  "Action":"Discover",		// 动作 - 描述数据包的动机
+  "Data":{					// 数据 - 需携带的数据
     
   },
-  "Port":10000				// 回应端口 - 表示我会监听哪个端口，等待对方的回应
-  "Context":1234			// 会话ID
+  "Port":10000,				// 回应端口 - 对方应该回应我的端口
 }
 ```
 
-
-
-TCP包装
+TCP包
 
 Request
 
@@ -153,86 +108,238 @@ Response
 
 
 
-### 业务层
+## 握手过程
 
-#### UDP部分
+协议同步
 
-Discover		Master -> Slave	不加密
+1. Master发起Discover广播，查找局域网内的Slave设备。
+
+   ```json
+   {
+     "Action":"Discover",
+     "Data":{
+       "AcceptVersion":[1,2,3],	// 支持的协议版本
+     },
+     "Port":10000
+   }
+   ```
+
+   说明：该数据包必须使用初始的协议版本发送，格式不可改变，不加密，以保证所有版本的协议都可以正确识别。
+
+2. Slave收到Discover广播，回应DiscoverResponse广播。
+
+   ```json
+   {
+     "Action":"DiscoverResponse",
+     "Data":{
+       "AcceptVersion":[1,2,3]	// 支持的协议版本
+     },
+     "Port":10000
+   }
+   ```
+
+   说明：该数据包可以选用Master支持的任何版本协议进行发送，格式尽量不做改变。
+
+秘钥交换
+
+1. Master向Slave发起Encrypt广播。
+
+   ```json
+   {
+     "Action":"Encrypt",
+     "Data":{
+       "Type":"RSA"			// 加密方式
+       "Key":"PublicKey"		// Master公钥
+     },
+     "Port":10000
+   }
+   ```
+
+   说明：Master向Slave发送公钥，该数据包不需要加密
+
+2. Slave给Master回应EncryptResponse广播。
+
+   ```json
+   {
+     "Action":"EncryptResponse",
+     "Data":{
+       "Type":"RSA"			// 加密方式
+       "Key":"PublicKey"		// Slave公钥
+     }
+     "Port":10000
+   }
+   ```
+
+   说明：Slave向Master发送公钥，该数据包不需要加密
+
+3. Master继续向Slave发起Encrypt广播，秘钥类型为AES，使用Slave公钥加密。
+
+4. Slave回应Master，秘钥类型为AES，使用AES方式加密，Master做个验证。
+
+注意：
+
+1. 以上两个步骤分别做了协议同步和秘钥交换的工作，至此，双方可以互相秘密地进行通讯。
+2. 互相可信地通讯并不代表通讯双方是真实可信的，即，可能有一方或者两方为伪造的，下文将会对验证身份进行描述。
+
+## 过程描述
+
+中控与仪表建立起局域网，可以是中控仪表一体设备的本地环回网络，也可以是中控仪表之间建立的无线连接。
+
+```sequence
+participant Master as M
+participant Slave as S
+Note over M,S:UDP
+Note over S:开启UDP监听
+Note over M:开启UDP监听
+M->S:发送Discover
+Note over S:收到Discover
+S->M:回应Discover OK
+Note over M:收到Discover OK
+M->S:发送Binding
+Note over S:收到Binding
+Note over M,S:TCP
+Note over S:开启TCP监听
+S->M:回应Binding OK
+Note over M:收到 Binding OK,关闭UDP监听
+Note over M:开启TCP链接
+M->S:发送数据
+S->M:发送数据
+```
+
+
+## 业务内容
+
+Discover			Master -> Slave	不加密
 
 ```json
 {
-  "Resource":"Discover",	// 资源 - 这个包里面装的东西是什么
-  "Data":{					// 数据 - 该资源包含的具体数据
-    "Service":"Music",		// 请求服务类型
-    // "SupportVsersion":[1,2,3]	// 支持的协议版本
-    "PublicKey":"12345678"	// Master公钥
+  "Resource":"Discover",
+  "Data":{
+    "AcceptVersion":[1,2,3],	// 支持的协议版本
   },
-  "Port":10000				// 回应端口 - 表示我会监听哪个端口，等待对方的回应
+  "Port":10000
 }
 ```
 
-Discover OK	 Slave ->Master	RSA加密
+DiscoverOK		Slave -> Master	不加密
 
 ```json
 {
-  "Resource":"DiscoverOK",	// 资源 - 这个包里面装的东西是什么
-  "Data":{					// 数据 - 该资源包含的具体数据
-    "ServiceStatus":"Ready",		// 服务器状态
-    // "SupportVsersion":[1,2,3]	// 支持的协议版本
-    "AESKey":"12345678"		// AES秘钥
+  "Resource":"DiscoverOK",
+  "Data":{
+    "AcceptVersion":[1,2,3]	// 支持的协议版本
   },
-  "Port":10000				// 回应端口 - 表示我会监听哪个端口，等待对方的回应
+  "Port":10000
 }
 ```
 
-Binding		Master->Slave	AES加密
+Encrypt			Master -> Slave	不加密
 
 ```json
 {
-  "Resource":"Binding",	// 资源 - 这个包里面装的东西是什么
-  "Data":{					// 数据 - 该资源包含的具体数据
-    "DeviceID":"1234"		// 设备唯一标识
-    "AESKey":"12345678"		// AES秘钥
-  },
-  "Port":10000				// 回应端口 - 表示我会监听哪个端口，等待对方的回应
+  "Resource":"Encrypt",
+  "Data":{
+    "PublicKey":"PublicKey"		// Master公钥
+  }
+  "Port":10000
 }
 ```
 
-BindingOK	Slave -> Master	AES加密
+EncryptOK		Slave -> Master	用Master公钥加密
 
 ```json
 {
-  "Resource":"BindingOK",	// 资源 - 这个包里面装的东西是什么
-  "Data":{					// 数据 - 该资源包含的具体数据
-    "Port":"1234"			// TCP监听端口
-  },
-  "Port":10000				// 回应端口 - 表示我会监听哪个端口，等待对方的回应
+  "Resource":"EncryptOK",
+  "Data":{
+    "SecretKey":"SecretKey"		// AES秘钥
+  }
+  "Port":10000
 }
 ```
 
-#### TCP部分
 
-TODO
+
+Verify	校验	Master->Slave 发起校验请求
+
+```json
+{
+  "Action":"Verify",
+  "Port":10000
+}
+```
+
+VerifyOK
+
+```json
+{
+  "Action":"VerifyOK",
+  "Data":{
+    "Salt":"Salt",		// 随机盐
+    "Hash":"Hash"		// Hash(Salt+数字密码)
+  }
+  "Port":10000
+}
+```
+
+Register
+
+```json
+{
+  "Resource":"Register",
+  "Data":{
+    "UUID":"UUID",
+    "Salt":"Salt",
+    "Hash":"Hash"
+  },
+  "Port":10000
+}
+```
+
+RegisterOK
+
+```json
+{
+  "Resource":"RegisterOK",
+  "Data":{
+    "UUID":"UUID",
+    "Password":"Password"
+  }
+  "Port":10000
+}
+```
+
+Login
+
+```json
+{
+  "Resource":"Login",
+  "Data":{
+    "UUID":"UUID",
+    "Salt":"Salt",
+    "Hash":"Hash"	// Hash(Salt+Password)
+  },
+  "Port":10000
+}
+```
+
+LoginOK
+
+```json
+{
+  "Resource":"LoginOK",
+  "Data":{
+    "UUID":"UUID",
+    "Salt":"Salt",
+    "Hash":"Hash",	// Hash(Salt+Password)
+    "Port":30001
+  },
+  "Port":10000
+}
+```
+
+
 
 ## 加密验证
-
-方案一：
-
-1. Master发送Discover包，带上自己的公钥
-2. Slave接收到Discover包，回应DiscoverOK包，带上AES秘钥然后用Master公钥加密。
-3. Master发送Binding包，带上自己的设备UUID，使用AES秘钥加密。
-4. Slave收到Binding包，使用AES秘钥解密成功后，回应BindingOK包，并使用AES秘钥加密。
-
-问题：
-
-如果有人拿到协议文档，或者反编译SDK，分析协议，会有以下情况产生：
-
-1. 可以伪造服务端，接到Discover包后按照正常流程进行，也会验证成功。
-2. 第一次验证成功后，通过木马或者等情况读取到用户手机的UUID，然后伪装用户手机和服务器通讯。
-
-
-
-方案二：
 
 1. Master发送Discover包，内容如下
 
