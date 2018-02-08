@@ -4,8 +4,6 @@
 
 JetCast主要是用于公司仪表端和中控端互相通讯的协议。2.0是在1.0的基础上重新设计的版本。
 
-本文描述了JetCast2.0简洁化的方案。主要剔除了繁杂的版本校验，使用简便的方式做版本兼容。
-
 ## 角色定义
 
 - Master(Client)：中控端，Android设备，IOS设备
@@ -73,7 +71,8 @@ Master UDP监听端口：固定范围内的随机未被占用的端口 例：301
 UDP表示层 报文
 
 ```
-Context-Code(16 Bytes):会话UUID 确认一组UDP传输
+Protocol-Version(2 Bytes):00 01
+// Context-Code(16 Bytes):会话UUID 确认一组UDP传输
 Encrypt-Type(2 Bytes):加密方式	00:None	01:RSA	02:AES
 Content-Type(2 Bytes):数据类型	01:Byte 02:Json
 Data(~ Bytes):数据内容
@@ -84,8 +83,10 @@ Data(~ Bytes):数据内容
 TCP表示层 报文
 
 ```
-Context-Code(16 Bytes):会话UUID 用于对应请求和响应关系
+Protocol-Version(2 Bytes):00 01
+// Context-Code(16 Bytes):会话UUID 用于对应请求和响应关系
 Encrypt-Type(2 Bytes):加密方式
+Compress-Type:压缩方式
 Content-Type(2 Bytes):数据类型
 Content-Length(4 Bytes)：数据长度
 Data(~ Bytes)：数据内容
@@ -118,6 +119,7 @@ UDP包装
     
   },
   "Port":10000				// 回应端口 - 表示我会监听哪个端口，等待对方的回应
+  "Context":1234			// 会话ID
 }
 ```
 
@@ -228,9 +230,42 @@ TODO
 1. 可以伪造服务端，接到Discover包后按照正常流程进行，也会验证成功。
 2. 第一次验证成功后，通过木马或者等情况读取到用户手机的UUID，然后伪装用户手机和服务器通讯。
 
-想了很多种方案，但是不借助证书验证的方式，都无法完美解决。
 
-TODO……其他方案待考虑
+
+方案二：
+
+1. Master发送Discover包，内容如下
+
+   ```json
+   {
+     "Resource":"Discover",
+     "Data":{
+       "Service":"Music",		// 请求服务类型
+       "Key":"1234",			// Master公钥
+       "UUID":"uuid",			// 可空 Master设备的UUID
+       "Salt":"SALT"			// 可空 盐
+       "Hash":"HASH"			// 可空 散列 Hash(Slat+数字密码)
+     },
+     "Port":10000
+   }
+   ```
+
+   说明：
+
+   1. Service和Key容易理解。
+   2. UUID：Master的设备唯一标识。
+   3. Hash：Hash(UUID+数字密码)，使用UUID+设备存储的数字密码然后用MD5散列。
+
+2. Slave收到Discover包
+
+   判断UUID和Hash是否为空。
+
+   1. 如果任一为空，就表明Master没有匹配过任何Slave，Slave端显示四位数字密码和它的二维码。
+   2. 如果Salt和Hash都不为空，Slave去存储块查找对应的UUID和数字密码，如果查询到，把UUID和数字密码散列进行比对，通过就表示认证通过，说明之前已经获得了用户授权。没通过就显示四位数字密码和它的二维码。
+
+3. Slave回应DiscoverOK包
+
+   ​
 
 ## 升级兼容
 
