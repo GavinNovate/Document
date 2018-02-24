@@ -37,7 +37,7 @@ Protocol-Version(2 Bytes):协议版本
 Context-Code(8 Bytes):会话编码	一对请求响应使用同一个会话编码
 Package-Type(2 Bytes):包装类型	01:Request	02:Response
 Encrypt-Type(2 Bytes):加密方式	00:None	01:RSA	02:AES
-Content-Type(2 Bytes):数据类型	01:Byte 02:Json
+Content-Type(2 Bytes):数据类型	01：Byte(MsgPack) 02:Text(Json)
 Data(~ Bytes):数据内容
 ```
 
@@ -59,17 +59,19 @@ Data(~ Bytes)：数据内容
 2. 会话编码：描述数据包的对应关系，应对并发场景
 3. 包装类型：描述数据包是主动发出还是响应请求被动发出
 4. 加密方式：描述数据内容的加密方式，分别为不加密，RSA加密和AES加密
-5. 数据类型：描述数据内容的数据类型，分别为Byte字节流和Json字符流
+5. 数据类型：描述数据内容的数据类型，分别为Msgpack字节流和Json字符流
 6. 数据长度：TCP包中，确认数据内容的长度，用以切割数据包
 7. 数据内容：具体数据
 
 ### 数据内容格式
 
-协议规定了Byte和Json数据类型的通用格式
+协议规定了Msgpack和Json数据类型的通用格式
 
-#### Byte类型
+注意：理论上，同一个业务，如果同时支持多种数据类型，那么通过不同数据类型获取到的数据内容是不变的。
 
-// Todo
+#### Msgpack类型
+
+参考JSON数据类型
 
 
 
@@ -487,7 +489,7 @@ Response
 
 ## 其他说明
 
-关于四种请求方式
+### 请求方式
 
 | 请求方式   | 安全（不会改变服务端资源）？ | 幂等（多次请求结果相同）？ |
 | ------ | -------------- | ------------- |
@@ -502,3 +504,28 @@ Response
 2. POST：增，向服务端新建一个数据，会改变服务端数据，多次请求创建多次
 3. PUT：改，需指定ID，向服务端修改一个数据，会改变服务端数据，多次请求数据相同
 4. DELETE：删，需指定ID，从服务端删除一个数据，会改变服务端数据，多次请求不会删除多余数据
+
+
+
+
+### 序列化方式
+
+Data字段序列化方式
+
+1. [MessagePack](https://msgpack.org)
+
+   MessagePack是一种高效的二进制序列化格式。它类似JSON，但更快并且更小。
+
+2. [JSON](http://json.org)
+
+   JSON是一种轻量级的数据交换格式，采用完全独立于语言的文本格式，是理想的数据交换语言。
+
+对比：
+
+1. MessagePack和JSON序列化体积对比：
+   1. MessagePack基本总是比JSON小一些，具体幅度需要看序列化的对象的内容。
+2. MessagePack相对JSON解析速度对比：
+   1. MessagePack对二进制数据特别友好，二进制数据会原封不动的放进MessagePack中，当需要序列化的对象二进制数据远多于其他数据时，MessagePack的序列化和反序列化速度大幅度高于JSON(2~5倍)。
+   2. MessagePack对字符流数据不太友好，特别是经过编码的字符，对此，JSON的效率明显更高。当需要序列化的对象中字符流数据远多于其他数据时，JSON的速度通常是MessagePack的1~2倍。（JSON中二进制通过Base64转化）
+   3. MessagePack对大量数据比较友好，当数据量比较大时，通常超过1M，MessagePack的解析速度要比JSON稍快。
+   4. JSON对小数据量比较友好，当数据量比较小时，JSON的解析速度稍快。
