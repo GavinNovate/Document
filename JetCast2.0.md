@@ -1,4 +1,4 @@
-# JetCast2.0设计方案
+# JetCast Transfer Protocol
 
 JetCast2.0协议用于局域网内多个设备间的通讯。
 
@@ -26,31 +26,19 @@ Client UDP监听端口：固定范围内的随机未被占用的端口 如：301
 
 ## 数据格式
 
-协议规定了UDP和TCP数据包格式和数据包中的数据内容格式
+协议规定了数据包格式和数据包中的数据内容格式
 
 ### 数据包格式
 
-UDP数据包格式
+数据包使用Msgpack序列化工具，将如下格式的数据包序列化
 
-```
-Protocol-Version(2 Bytes):协议版本
-Context-Code(8 Bytes):会话编码	一对请求响应使用同一个会话编码
-Package-Type(2 Bytes):包装类型	01:Request	02:Response
-Encrypt-Type(2 Bytes):加密方式	00:None	01:RSA	02:AES
-Content-Type(2 Bytes):数据类型	01：Byte(MsgPack) 02:Text(Json)
-Data(~ Bytes):数据内容
-```
-
-TCP数据包格式
-
-```
-Protocol-Version(2 Bytes):协议版本
-Context-Code(8 Bytes):会话编码	一对请求响应使用同一个会话编码
-Package-Type(2 Bytes):包装类型
-Encrypt-Type(2 Bytes):加密方式
-Content-Type(2 Bytes):数据类型
-Content-Length(4 Bytes)：数据长度
-Data(~ Bytes)：数据内容
+```java
+String protocol;		// 协议版本	"JCTP/2.0"
+String transfer;		// 传输方向 请求:"Request" 响应:"Response"
+String context;			// 会话场景	
+String contentType;
+String contentEncrypt;
+byte[] content;
 ```
 
 说明：
@@ -85,7 +73,6 @@ Request
 {
   "Action":"POST",			// 请求类型 分为 GET/PUT/POST/DELETE
   "Resource":"Resource",	// 请求资源名字
-  "ResourceId":1,			// 资源编号
   "Data":{					// 请求体
     
   },
