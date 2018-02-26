@@ -1,0 +1,330 @@
+# cost = CFixedPoint( base_cost + ( level * level * level_cost ) ).GetTruncated()
+# DEFAULT: base_cost = 0, level_cost = 0.4, max_level = 4
+
+new_idea_adm_modifiers = {
+	category = ADM
+
+	# 基础理念_1
+	novate_idea_basics_1 = {
+
+		all_power_cost = -0.10		# 所有点数花费 -10%
+
+		max_level = 5
+		level_cost_1 = 1
+		level_cost_2 = 2
+		level_cost_3 = 3
+		level_cost_4 = 4
+		level_cost_5 = 5
+	}
+
+	# 基础理念_2
+	novate_idea_basics_2 = {
+
+		idea_cost = -0.10			# 理念花费 -10%
+
+		max_level = 5
+		level_cost_1 = 1
+		level_cost_2 = 2
+		level_cost_3 = 3
+		level_cost_4 = 4
+		level_cost_5 = 5
+	}
+
+	# 真龙天子
+	novate_idea_master_1 = {
+
+		# ---- 宫廷 ----
+		monarch_admin_power = 1			# 君主行政能力 +1
+		monarch_diplomatic_power = 1	# 君主外交能力 +1
+		monarch_military_power = 1		# 君主军事能力 +1
+
+		prestige = 0.20					# 威望上升 +0.20
+		prestige_decay = -0.10			# 威望下降 -10%
+
+		monthly_splendor = 1			# 每月辉煌点数 +1
+		yearly_corruption = -0.20		# 腐败值年度变化 -0.20
+
+		advisor_cost = -0.10			# 顾问花费 -10%
+		advisor_pool = 1				# 可能的顾问 +1
+		female_advisor_chance = 0.10	# 女性顾问概率 +10%
+
+		heir_chance = 0.10				# 添丁进口的机会 +10%
+
+		max_level = 5
+		level_cost_1 = 1
+		level_cost_2 = 2
+		level_cost_3 = 3
+		level_cost_4 = 4
+		level_cost_5 = 5
+	}
+
+	# 天朝上国
+	novate_idea_master_2 = {
+
+		# ---- 政府 ----
+		max_states = 20						# 直属州数量 +20
+		legitimacy = 1						# 年度正统度变化 +1
+		meritocracy = 1						# 年度贤能值变化 +1
+
+		imperial_mandate = 0.20				# 天命修正 +0.20
+
+
+		# ---- 经济 ----
+		global_tax_modifier = 0.10			# 国家税收修正+10%
+		production_efficiency = 0.10		# 生产效率+10%
+		inflation_reduction = 0.10			# 通胀每年降低0.10
+		development_cost = -0.10			# 发展成本 -10%
+		build_cost = -0.10					# 建造成本 -10%
+		build_time = -0.10					# 建筑时间 -10%
+		core_creation = -0.10				# 核心化花费 -10%
+
+
+		# ---- 稳定 ----
+		global_unrest = -1					# 国家叛乱度	-1.0
+		stability_cost_modifier = -0.10		# 稳定花费修正 -10%
+		global_autonomy = -0.20				# 每月自治度变化 -0.20
+		harsh_treatment_cost = -0.10		# 严酷镇压花费 -10%
+		years_of_nationalism = -2			# 分裂主义年数 -2
+
+		max_level = 5
+		level_cost_1 = 1
+		level_cost_2 = 2
+		level_cost_3 = 3
+		level_cost_4 = 4
+		level_cost_5 = 5
+	}
+
+	# 万里长城
+	novate_idea_master_3 = {
+
+		# ---- 军事 ----
+		free_leader_pool = 2				# 免维护点数的将领 +2
+		war_exhaustion = -0.20				# 每月厌战 -0.20
+
+		# ---- 陆军 ----
+
+		leader_land_fire = 1				# 陆军将领火力 +1
+		leader_land_shock = 1				# 陆军将领冲击 +1
+		leader_land_manuever = 1			# 陆军将领机动 +1
+		leader_siege = 1					# 陆军将领攻城 +1
+
+		infantry_power = 0.10				# 步兵作战能力 +10%
+		cavalry_power = 0.10				# 骑兵作战能力 +10%
+		artillery_power = 0.10				# 炮兵作战能力 +10%
+
+		fire_damage = 0.10					# 陆军火力伤害 +10%
+		shock_damage = 0.10					# 陆军冲击伤害 +10%
+
+		siege_ability = 0.20				# 陆军围城能力 +20%
+		movement_speed = 0.20				# 陆军移动速度 +20%
+
+		land_morale = 0.20					# 陆军士气 +20%
+		recover_army_morale_speed = 0.20	# 陆军士气恢复速度 +20%
+
+		army_tradition = 0.50				# 每年陆军传统 +0.50
+
+		global_regiment_recruit_speed = -0.10		# 募兵时间 -10%
+		global_regiment_cost = -0.10				# 建造费用 -10%
+		land_maintenance_modifier = -0.10			# 陆军维护费修正 -10%
+		land_forcelimit_modifier = 0.20				# 陆军规模上限修正 +20%
+
+		global_manpower_modifier = 0.20				# 国家人力修正 +20%
+		manpower_recovery_speed = 0.20				# 人力恢复速度 +20%
+
+		# ---- 海军 ----
+
+		leader_naval_fire = 1				# 海军将领火力 +1.0
+		leader_naval_manuever = 1			# 海军将领机动 +1.0
+		leader_naval_shock = 1				# 海军将领冲击 +1.0
+
+		heavy_ship_power = 0.10				# 重型船只作战能力 +10%
+		light_ship_power = 0.10				# 小型战舰作战能力 +10%
+		galley_power = 0.10					# 浆帆战舰作战能力 +10%
+		transport_power = 0.10				# 运输船只作战能力 +10%
+
+		blockade_efficiency = 0.20			# 海军封锁 +20%
+
+		naval_attrition = -0.10				# 海军损耗 -10%
+		ship_durability = 0.20				# 船只耐久 +20%
+
+		naval_morale = 0.20					# 海军士气 +20%
+		recover_navy_morale_speed = 0.20	# 海军士气恢复速度 +20%
+
+		navy_tradition = 0.5				# 每年海军传统 +0.5
+
+		global_ship_recruit_speed = -0.10		# 造船时间 -10%
+		global_ship_cost = -0.10				# 船只花费 -10%
+		naval_maintenance_modifier = -0.10		# 海军维护费用修正 -10%
+		naval_forcelimit_modifier = 0.20		# 海军规模上限修正 +20%
+
+		global_sailors_modifier = 0.20			# 国家水手修正 +20%
+		sailors_recovery_speed = 0.20			# 水手恢复速度 +20%
+
+		max_level = 5
+		level_cost_1 = 1
+		level_cost_2 = 2
+		level_cost_3 = 3
+		level_cost_4 = 4
+		level_cost_5 = 5
+	}
+
+	# 黄河九曲
+	novate_idea_master_4 = {
+
+		# ---- 文化 ----
+		culture_conversion_cost = -0.11		# 转变文化花费-11%
+		num_accepted_cultures = 12	# 可接受文化上限+12
+
+		# ---- 宗教 ----
+		global_missionary_strength = 0.11		# 传教力量+11%
+		global_heretic_missionary_strength = 0.12	# 传教士力量对异端+12%
+		missionaries = 13		# 传教士+13
+		religious_unity = 0.14	# 宗教统一+14%
+		tolerance_own = 15		# 正统信仰容忍度+15
+		tolerance_heretic = 16	# 异端容忍度+16
+		tolerance_heathen = 17	# 异教容忍度+17
+		papal_influence = 0.18	# 每年可获得的教廷影响力+0.18
+		church_power_modifier = 0.19	# 教会力量+19%
+		monthly_fervor_increase = 20		# 每月聚焦点+20.0
+		harmonization_speed = 0.21		# 宗教融合速度+21%
+		yearly_harmony = 22			# 每年和谐度增长+22
+		monthly_piety = 0.23		# 每月虔诚+0.23
+		monthly_karma = 0.24		# 每月业报+0.24
+		enforce_religion_cost = -0.25		# 通过战争强制改变宗教的花费-0.25%
+		prestige_per_development_from_conversion = 0.26		# 每发展都带来的传教声望+0.26
+		warscore_cost_vs_other_religion = -0.27		# 对异教战争分数花费-27%
+
+		max_level = 5
+		level_cost_1 = 1
+		level_cost_2 = 2
+		level_cost_3 = 3
+		level_cost_4 = 4
+		level_cost_5 = 5
+	}
+
+	# 丝绸之路
+	novate_idea_master_5 = {
+
+		# ---- 贸易 ----
+		caravan_power = 0.36		# 商队力量+36%
+		merchants = 37		# 商人+37
+		placed_merchant_power = 38		# 贸易竞争力+38%
+		global_trade_power = 0.39		# 全局贸易竞争力+39%
+		global_foreign_trade_power = 0.40		# 国外贸易竞争力+39%
+		global_own_trade_power = 0.41			# 国内贸易竞争力+39%
+		global_prov_trade_power_modifier = 0.42		# 省份贸易竞争力修正+42%
+		global_trade_goods_size_modifier = 0.43		# 商品产出修正43%
+		trade_efficiency = 0.44		# 贸易效率+44%
+		trade_range_modifier = 0.45	# 贸易范围+45%
+		trade_steering = 0.46		# 贸易引导+46%
+		global_ship_trade_power = 0.47		# 舰船贸易竞争力+47%
+		privateer_efficiency = 0.48		# 私掠效率+48%
+		embargo_efficiency = 0.49	# 禁运效率+49%
+		ship_power_propagation = 0.50	# 船只贸易竞争力+50%
+
+		max_level = 5
+		level_cost_1 = 1
+		level_cost_2 = 2
+		level_cost_3 = 3
+		level_cost_4 = 4
+		level_cost_5 = 5
+	}
+
+	# 四大发明
+	novate_idea_master_6 = {
+
+		# ---- 科技 ----
+		adm_tech_cost_modifier = -0.10				# 行政科技成本 -10%
+		dip_tech_cost_modifier = -0.10				# 外交科技成本 -10%
+		mil_tech_cost_modifier = -0.10				# 军事科技成本 -10%
+		technology_cost = -0.10						# 科研费用 -10%
+		idea_cost = -0.10							# 理念花费 -10%
+		embracement_cost = -0.10					# 接纳思潮的花费 -10%
+		global_institution_spread = 0.20			# 思潮传播 +20%
+		institution_spread_from_true_faith = 0.20 	# 思潮在正信仰的省份传播速度 +20%
+		native_advancement_cost = -0.10				# 土著传统技术革新需要花费 -30%
+
+		max_level = 5
+		level_cost_1 = 1
+		level_cost_2 = 2
+		level_cost_3 = 3
+		level_cost_4 = 4
+		level_cost_5 = 5
+	}
+
+	# 万国来朝
+	novate_idea_master_7 = {
+
+		# ---- 外交 ----
+		diplomats = 1							# 外交官 +1
+		diplomatic_reputation = 1				# 外交威望 +1
+		diplomatic_upkeep = 2					# 外交关系 +2
+		envoy_travel_time = -0.10				# 使节团行程时间 -10%
+		fabricate_claims_cost= -0.10			# 伪造主权所需时间 -10%
+		improve_relation_modifier = 0.10		# 改善关系 +10%
+		vassal_forcelimit_bonus = 0.20			# 附庸提供的武力上限 +20%
+		vassal_income = 0.20					# 附庸国进贡收入 +20%
+		ae_impact = -0.10						# 侵略性扩张影响-10%
+		claim_duration = 0.20					# 宣称时间+20%
+		diplomatic_annexation_cost = -0.10		# 外交合并花费 -21%
+		province_warscore_cost = -0.10			# 省份战争分数花费 -10%
+		unjustified_demands = -0.10				# 不正当的要求 -10%
+		enemy_core_creation = 0.10				# 敌方国家建立核心成本+24%
+		rival_change_cost = -0.10				# 更改宿敌花费-25%
+
+		# ---- 附属 ----
+		liberty_desire = -10								# 独立倾向 -10%
+		liberty_desire_from_subject_development = -10		# 发展都造成的独立倾向 -10%
+		reduced_liberty_desire = 10							# 属国独立倾向 -10%
+		reduced_liberty_desire_on_same_continent = 10		# 同一大陆的属国独立倾向-10%
+
+		# ---- 殖民 ----
+		colonists = 1						# 殖民队 +1
+		colonist_placement_chance = 0.20	# 定居几率 +20%
+		global_colonial_growth = 20			# 全国移民增加 +20
+		range = 0.20						# 殖民范围 +20%
+		native_uprising_chance = -0.10		# 土著抵抗几率 -10%
+		native_assimilation = 0.10			# 同化土著 +10%
+		migration_cooldown = -0.10			# 迁徙冷却期 -10%
+		global_tariffs = 0.20				# 全国关税 +20%
+
+		# ---- 间谍 ----
+		spy_offence = 0.20						# 间谍实力	+20%
+		global_spy_defence = 0.20				# 国家间谍防御 +20%
+		discovered_relations_impact = -0.10		# 秘密行动对关系的影响 -10%
+		rebel_support_efficiency = 0.10			# 叛乱支持效率 +10%
+
+		max_level = 5
+		level_cost_1 = 1
+		level_cost_2 = 2
+		level_cost_3 = 3
+		level_cost_4 = 4
+		level_cost_5 = 5
+	}
+
+	# 最终理念
+	novate_idea_ultima_1 = {
+
+		imperial_authority = 0.20			# 帝国威望 +20%
+		imperial_authority_value = 0.20		# 帝国权威修正 +0.20
+
+		max_level = 5
+		level_cost_1 = 1
+		level_cost_2 = 2
+		level_cost_3 = 3
+		level_cost_4 = 4
+		level_cost_5 = 5
+	}
+}
+
+new_idea_mil_modifiers = {
+	category = MIL
+
+}
+
+
+new_idea_dip_modifiers = {
+	category = DIP
+
+
+}
