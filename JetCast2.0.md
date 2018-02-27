@@ -2,7 +2,7 @@
 
 JetCast2.0协议用于局域网内多个设备间的通讯。
 
-协议使用"请求-响应"模式，拆分逻辑，利于扩展。
+协议使用"请求-响应"模式，解决业务间的耦合调用，拆分逻辑，利于扩展。
 
 协议使用RESTful设计风格，面向资源设计API，易于维护和扩展。
 
@@ -26,99 +26,154 @@ Client UDP监听端口：固定范围内的随机未被占用的端口 如：301
 
 ## 数据格式
 
+
+
+```
++---------+--------+-------------+~~~~~~~~+-------------+~~~~~~~~+-------------+~~~~~~~~+
+| Encrytp | Action | Line Length |  Line  | Head Length |  Head  | Body Length |  Body  |
++---------+--------+-------------+~~~~~~~~+-------------+~~~~~~~~+-------------+~~~~~~~~+
+
+固定字节数字段
++--------+
+|        |
++--------+
+
+不定字节数字段
++~~~~~~~~+
+|        |
++~~~~~~~~+
+
+Encrytp	(1 Byte):加密方式 0x00 不加密 0x01 AES 0x02 RSA
+Action	(1 Byte):请求 Or 响应 0x01 请求 0x02 响应
+
+```
+
+
+
+### 应用层
+
+应用层借鉴HTTP协议，将数据包分为**请求**和**响应**两部分，格式如下：
+
+#### 请求
+
+```java
+String protocol;		// 协议版本
+String method;			// 请求方法 GET/PUT/POST/DELETE
+String resource;		// 请求资源
+
+Header header;			// 请求头
+byte[] body;			// 请求体
+```
+
+#### 响应
+
+```java
+String protocol;		// 协议版本
+int status；				// 响应状态
+String message;			// 响应信息
+
+Header header;			// 响应头
+byte[] body;			// 响应体
+```
+
+
+
+### 表示层
+
+表示层在应用层数据包前加一个字节的数据，用于表示应用层数据包整体的加密方式
+
+```
+Encryption(1 Byte):加密方式 0x00 不加密，0x01 AES加密，0x02 RSA加密
+
++------------+~~~~~~~~~~~~~~+
+| Encryption |  应用层数据包  |
++------------+~~~~~~~~~~~~~~+
+```
+
+
+
+### 会话层
+
+会话层在表示层数据包前加九字节数据，用于表示数据包的会话信息
+
+```
++---------+---------+---------+------------+~~~~~~~~~~~+
+| length  | session | context | encryption |  Package  |
++---------+---------+---------+------------+~~~~~~~~~~~+
+
+
+```
+
+
+
+### UDP数据帧
+
+UDP数据帧使用一个字节来区分数据帧的传输方向(Request/Response)。
+
+传输方向 会话场景 加密方式 
+
 协议规定了数据包格式和数据包中的数据内容格式
 
-### 数据包格式
+名词解释：
 
-数据包使用Msgpack序列化工具，将如下格式的数据包序列化
+1. 数据包(Package)：一次UDP或TCP传输的数据，其中TCP传输时需使用Length-Package格式分割。
+2. 数据内容(Content)：数据包中用于存放具体数据的字段，分为请求和响应两种数据。
+
+### 数据包
+
+数据包使用**Msgpack**序列化方式，将如下格式的数据包序列化
 
 ```java
 String protocol;		// 协议版本	"JCTP/2.0"
-String transfer;		// 传输方向 请求:"Request" 响应:"Response"
-String context;			// 会话场景	
-String contentType;
-String contentEncrypt;
-byte[] content;
+String transfer;		-- // 传输方向 请求:"Request" 响应:"Response"
+String context;			-- // 会话场景
+String contentType;		// 数据类型	字节流:"Msgpack" 字符流:"Json"
+String contentEncrypt;	-- // 加密方式	对称加密:"AES" 非对称加密:"RSA"
+byte[] content;			// 数据内容
 ```
 
 说明：
 
-1. 协议版本：描述当前协议版本，预留协议升级的能力
-2. 会话编码：描述数据包的对应关系，应对并发场景
-3. 包装类型：描述数据包是主动发出还是响应请求被动发出
-4. 加密方式：描述数据内容的加密方式，分别为不加密，RSA加密和AES加密
-5. 数据类型：描述数据内容的数据类型，分别为Msgpack字节流和Json字符流
-6. 数据长度：TCP包中，确认数据内容的长度，用以切割数据包
-7. 数据内容：具体数据
+1. 协议版本：描述当前协议版本
+2. 传输方向：描述数据包的传输方向是**主动请求**还是**被动响应**
+3. 会话场景：描述数据包**请求响应**的对应关系
+4. 数据类型：描述数据内容的数据类型，**字节流**使用Msgpack方式传输，**字符流**使用Json方式传输
+5. 加密方式：描述数据内容的加密方式，分为**不加密**(空值/无此字段)，**对称加密**(AES)和**非对称加密**(RSA)
+6. 数据内容：具体数据
 
-### 数据内容格式
+### 数据内容
 
-协议规定了Msgpack和Json数据类型的通用格式
+数据内容分为两类，分别为**请求**(Request)和**响应**(Response)，可以使用Msgpack或Json序列化
 
-注意：理论上，同一个业务，如果同时支持多种数据类型，那么通过不同数据类型获取到的数据内容是不变的。
+#### 请求
 
-#### Msgpack类型
-
-参考JSON数据类型
-
-
-
-#### Json类型
-
-##### UDP包
-
-Request
-
-```json
-{
-  "Action":"POST",			// 请求类型 分为 GET/PUT/POST/DELETE
-  "Resource":"Resource",	// 请求资源名字
-  "Data":{					// 请求体
-    
-  },
-  "Port":10000				// 回应端口 - 对方应该回应我的端口
-}
+```java
+String action;			// 请求类型 GET/PUT/POST/DELETE
+String resource;		// 请求资源名称
+Object data;			// 请求资源体 
+Integer port;			// 回应端口 - UDP专用，TCP为空(无此字段)
 ```
 
-Response
+#### 响应
 
-```json
-{
-  "Status":200,				// 响应状态码
-  "Error":"Error Message",	// 响应信息
-  "Data":{					// 响应体
-    
-  },
-  "Port":10000,				// 回应端口 - 对方应该回应我的端口
-}
+```java
+Integer status；			// 状态码
+String message;			// 提示信息
+Object data;			// 响应体
 ```
 
-##### TCP包
 
-Request
 
-```json
-{
-  "Action":"POST",			// 请求类型 分为 GET/PUT/POST/DELETE
-  "Resource":"Resource",	// 请求资源类型
-  "ResourceId":1,			// 资源编号
-  "Data":{					// 请求体
-    
-  }
-}
+
+
+请求报文
+
+```
+protocol method resource
+protocol status message
 ```
 
-Response
 
-```json
-{
-  "Status":200,				// 响应状态码
-  "Error":"Error Message",	// 响应信息
-  "Data":{					// 响应体
-    
-  }
-}
-```
 
 ## 协议接口
 
