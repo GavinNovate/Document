@@ -26,152 +26,164 @@ Client UDP监听端口：固定范围内的随机未被占用的端口 如：301
 
 ## 数据格式
 
-
+### 图示说明
 
 ```
-+---------+--------+-------------+~~~~~~~~+-------------+~~~~~~~~+-------------+~~~~~~~~+
-| Encrytp | Action | Line Length |  Line  | Head Length |  Head  | Body Length |  Body  |
-+---------+--------+-------------+~~~~~~~~+-------------+~~~~~~~~+-------------+~~~~~~~~+
-
-固定字节数字段
 +--------+
 |        |
 +--------+
+表示固定字节数的字段
 
-不定字节数字段
 +~~~~~~~~+
 |        |
 +~~~~~~~~+
-
-Encrytp	(1 Byte):加密方式 0x00 不加密 0x01 AES 0x02 RSA
-Action	(1 Byte):请求 Or 响应 0x01 请求 0x02 响应
-
+表示不定字节数的字段
 ```
 
 
 
-### 应用层
+### 数据帧
 
-应用层借鉴HTTP协议，将数据包分为**请求**和**响应**两部分，格式如下：
-
-#### 请求
-
-```java
-String protocol;		// 协议版本
-String method;			// 请求方法 GET/PUT/POST/DELETE
-String resource;		// 请求资源
-
-Header header;			// 请求头
-byte[] body;			// 请求体
 ```
++---------+--------+~~~~~~~~~+
+| Encrytp | Action | Package |
++---------+--------+~~~~~~~~~+
 
-#### 响应
-
-```java
-String protocol;		// 协议版本
-int status；				// 响应状态
-String message;			// 响应信息
-
-Header header;			// 响应头
-byte[] body;			// 响应体
+Encrytp	(1 Byte): 加密方式  0x00 无加密, 0x01 AES加密, 0x02 RSA加密
+Action	(1 Byte): 请求响应  0x01 请求, 0x02 响应
+Package	(~ Byte): 数据包
 ```
 
 
-
-### 表示层
-
-表示层在应用层数据包前加一个字节的数据，用于表示应用层数据包整体的加密方式
-
-```
-Encryption(1 Byte):加密方式 0x00 不加密，0x01 AES加密，0x02 RSA加密
-
-+------------+~~~~~~~~~~~~~~+
-| Encryption |  应用层数据包  |
-+------------+~~~~~~~~~~~~~~+
-```
-
-
-
-### 会话层
-
-会话层在表示层数据包前加九字节数据，用于表示数据包的会话信息
-
-```
-+---------+---------+---------+------------+~~~~~~~~~~~+
-| length  | session | context | encryption |  Package  |
-+---------+---------+---------+------------+~~~~~~~~~~~+
-
-
-```
-
-
-
-### UDP数据帧
-
-UDP数据帧使用一个字节来区分数据帧的传输方向(Request/Response)。
-
-传输方向 会话场景 加密方式 
-
-协议规定了数据包格式和数据包中的数据内容格式
-
-名词解释：
-
-1. 数据包(Package)：一次UDP或TCP传输的数据，其中TCP传输时需使用Length-Package格式分割。
-2. 数据内容(Content)：数据包中用于存放具体数据的字段，分为请求和响应两种数据。
 
 ### 数据包
 
-数据包使用**Msgpack**序列化方式，将如下格式的数据包序列化
+数据包分为两类，每类又分为两部分。
+
+两类：请求包、响应包
+
+两部分：数据头、数据体
+
+```
++-------------+~~~~~~~~+-------------+~~~~~~~~+
+| Head-Length |  Head  | Body-Length |  Body  |
++-------------+~~~~~~~~+-------------+~~~~~~~~+
+
+Head-Length (2 Bytes): 数据头长度
+Head		(~ Bytes): 数据头内容
+
+Body-Length (4 Bytes): 数据体长度
+Body		(~ Bytes): 数据体内容
+```
+
+
+
+#### 请求包
+
+##### 请求头
+
+请求行描述了协议及版本，请求的方法类型，请求的资源类型，以及扩充的header字段
 
 ```java
-String protocol;		// 协议版本	"JCTP/2.0"
-String transfer;		-- // 传输方向 请求:"Request" 响应:"Response"
-String context;			-- // 会话场景
-String contentType;		// 数据类型	字节流:"Msgpack" 字符流:"Json"
-String contentEncrypt;	-- // 加密方式	对称加密:"AES" 非对称加密:"RSA"
-byte[] content;			// 数据内容
+String protocol;		// 协议描述 例："JCTP/2.0"
+String method;			// 请求方法 GET/PUT/POST/DELETE
+String resource;		// 请求资源 例："Theme"
+Header header;			// 请求头扩充字段
 ```
 
-说明：
+请求行使用Json序列化，使用UTF-8编码，例：
 
-1. 协议版本：描述当前协议版本
-2. 传输方向：描述数据包的传输方向是**主动请求**还是**被动响应**
-3. 会话场景：描述数据包**请求响应**的对应关系
-4. 数据类型：描述数据内容的数据类型，**字节流**使用Msgpack方式传输，**字符流**使用Json方式传输
-5. 加密方式：描述数据内容的加密方式，分为**不加密**(空值/无此字段)，**对称加密**(AES)和**非对称加密**(RSA)
-6. 数据内容：具体数据
+```json
+{
+    "protocol": "JCTP/2.0",		// JCTP/2.0 协议
+    "method": "GET",			// GET 请求方法
+    "resource": "Theme",		// Theme 请求资源
+  	"header":{}					// Header
+}
+```
 
-### 数据内容
-
-数据内容分为两类，分别为**请求**(Request)和**响应**(Response)，可以使用Msgpack或Json序列化
-
-#### 请求
+header使用"Key - Value"方式，扩充描述字段
 
 ```java
-String action;			// 请求类型 GET/PUT/POST/DELETE
-String resource;		// 请求资源名称
-Object data;			// 请求资源体 
-Integer port;			// 回应端口 - UDP专用，TCP为空(无此字段)
+String context;			// 会话编码 请求时生成，响应时返回，用于表示一对请求响应
+String contentType;		// 内容类型 描述请求体的格式 例：object/msgpack,object/json,image/png等
+int responsePort;		// 响应端口 UDP中，告知对方响应数据的端口
+String key1;			// 扩充字段
+String key2;			// 扩充字段
 ```
 
-#### 响应
+header使用Json序列化，使用UTF-8编码，例：
+
+```json
+{
+    "context": "49BA59ABBE56E057",		// 会话编码 随机生成的通用唯一识别码
+    "contentType": "json",				// 请求体格式
+    "key1": "value1",					// 扩充字段
+    "key2": "value2"					// 扩充字段
+}
+```
+
+##### 请求体
+
+请求体为字节数组，可以存放任意类型的数据。
+
+由contentType定义数据格式
+
+由resource定义数据内容
+
+
+
+#### 响应包
+
+##### 响应头
+
+响应头描述了协议及版本，响应状态码，和响应信息。
 
 ```java
-Integer status；			// 状态码
-String message;			// 提示信息
-Object data;			// 响应体
+String protocol;		// 协议描述 例："JCTP/2.0"
+int status;				// 响应状态 例:200 成功； 类比HTTP协议响应状态码
+String message;			// 响应信息	例:OK，Success，Error等
+Header header;			// 响应头扩充描述
 ```
 
+响应头使用Json序列化，使用UTF-8编码，例：
 
-
-
-
-请求报文
-
+```json
+{
+    "protocol": "JCTP/2.0",		// 协议描述
+    "status": 200,				// 响应状态码
+    "message": "OK",			// 响应信息
+  	"header":{}					// 响应头扩充描述
+}
 ```
-protocol method resource
-protocol status message
+
+header使用"Key - Value"方式，扩充描述字段
+
+```java
+String context;			// 会话编码 请求时生成，响应时返回，用于表示一对请求响应
+String contentType;		// 内容类型 描述响应体的格式 例：object/msgpack,object/json,image/png等
+String key1;			// 扩充字段
+String key2;			// 扩充字段
 ```
+
+header使用Json序列化，使用UTF-8编码，例：
+
+```json
+{
+    "context": "49BA59ABBE56E057",		// 会话编码 随机生成的通用唯一识别码
+    "contentType": "json",				// 响应体格式
+    "key1": "value1",					// 扩充字段
+    "key2": "value2"					// 扩充字段
+}
+```
+
+##### 响应体
+
+请求体为字节数组，可以存放任意类型的数据。
+
+由contentType定义数据格式
+
+由对应请求的请求头中的resource定义数据内容
 
 
 
@@ -192,24 +204,38 @@ protocol status message
      Request
 
      ```json
+     // Line
      {
-       "Action":"GET",				// 标注为GET请求
-       "Resource":"Protocol",		// 标注请求的内容
-       "Port":30000
+         "protocol": "JCTP/2.0",		// JCTP/2.0 协议
+         "method": "GET",			// GET 请求方法
+         "resource": "protocols"		// Theme 请求资源
+     }
+     // Head
+     {
+         "context": "49BA59ABBE56E057",		// 会话
+         "responsePort": 30000				// 响应端口
      }
      ```
 
      Response
 
      ```json
+     // Line
      {
-       "Status":200,					// 状态码
-       "Error":"Success",			// 响应信息
-       "Data":{
-         "AcceptVersion":[1,2,3]		// 支持的协议版本
-       },
-       "Port":30000
+         "protocol": "JCTP/2.0",		// 协议描述
+         "status": 200,				// 响应状态码
+         "message": "OK"				// 响应信息
      }
+     // Head
+     {
+       	"context": "49BA59ABBE56E057",		// 会话
+       	"contentType": "json"				// 响应体格式
+     }
+     // Body
+     [
+       "JCTP/1.0",			// 支持的协议版本，JSONArray格式
+       "JCTP/2.0"
+     ]
      ```
 
    - POST请求
